@@ -11,9 +11,10 @@
 #include "hw/loader.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "hw/char/serial-mm.h"
+#include "hw/qdev-properties-system.h"
 #include "hw/misc/unimp.h"
-#include "system/reset.h"
+#include "hw/cputwo/cputwo_uart.h"
+#include "system/system.h"
 #include "elf.h"
 #include "target/cputwo/cpu.h"
 
@@ -37,6 +38,7 @@ static void cputwo_board_init(MachineState *machine)
     CPUTwoBoardState *s = CPUTWO_BOARD(machine);
     MemoryRegion *sysmem = get_system_memory();
     const char *kernel_filename = machine->kernel_filename;
+    DeviceState *uart_dev;
 
     /* Create CPU */
     s->cpu = CPUTWO_CPU(cpu_create(TYPE_CPUTWO_CPU));
@@ -44,8 +46,13 @@ static void cputwo_board_init(MachineState *machine)
     /* Create RAM (63 MB, below MMIO region) */
     memory_region_add_subregion(sysmem, 0, machine->ram);
 
-    /* MMIO devices — create as unimplemented for now */
-    create_unimplemented_device("cputwo-uart",  CPUTWO_UART_BASE,  0x1000);
+    /* UART */
+    uart_dev = qdev_new(TYPE_CPUTWO_UART);
+    qdev_prop_set_chr(uart_dev, "chardev", serial_hd(0));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(uart_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(uart_dev), 0, CPUTWO_UART_BASE);
+
+    /* Other MMIO devices — stubs for now */
     create_unimplemented_device("cputwo-timer", CPUTWO_TIMER_BASE, 0x1000);
     create_unimplemented_device("cputwo-ic",    CPUTWO_IC_BASE,    0x1000);
     create_unimplemented_device("cputwo-blk",   CPUTWO_BLK_BASE,   0x1000);
