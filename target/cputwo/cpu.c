@@ -14,6 +14,7 @@
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
 #include "hw/loader.h"
+#include "system/memory.h"
 #include "tcg/debug-assert.h"
 #include "accel/tcg/cpu-ops.h"
 
@@ -214,6 +215,12 @@ static bool cputwo_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
         /* Check access type */
         if (!check_access(access_type, prot)) {
             goto fault;
+        }
+
+        /* Set D bit on stores */
+        if (access_type == MMU_DATA_STORE && !(l1_pte & (1u << 1))) {
+            l1_pte |= (1u << 1);
+            stl_le_phys(cs->as, l1_pte_addr, l1_pte);
         }
 
         /* For superpages, map a single 4KB page at a time (QEMU standard) */
