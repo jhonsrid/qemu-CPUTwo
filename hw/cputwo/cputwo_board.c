@@ -14,6 +14,9 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/misc/unimp.h"
 #include "hw/cputwo/cputwo_uart.h"
+#include "hw/cputwo/cputwo_ic.h"
+#include "hw/cputwo/cputwo_timer.h"
+#include "hw/cputwo/cputwo_svreg.h"
 #include "system/system.h"
 #include "elf.h"
 #include "target/cputwo/cpu.h"
@@ -38,7 +41,7 @@ static void cputwo_board_init(MachineState *machine)
     CPUTwoBoardState *s = CPUTWO_BOARD(machine);
     MemoryRegion *sysmem = get_system_memory();
     const char *kernel_filename = machine->kernel_filename;
-    DeviceState *uart_dev;
+    DeviceState *ic_dev, *uart_dev, *timer_dev, *svreg_dev;
 
     /* Create CPU */
     s->cpu = CPUTWO_CPU(cpu_create(TYPE_CPUTWO_CPU));
@@ -46,17 +49,51 @@ static void cputwo_board_init(MachineState *machine)
     /* Create RAM (63 MB, below MMIO region) */
     memory_region_add_subregion(sysmem, 0, machine->ram);
 
-    /* UART */
+    /*
+     * Interrupt Controller
+     *   4 inputs: timer(0), uart_rx(1), uart_tx(2), blk(3)
+     *   1 output: CPU IRQ line
+     */
+    ic_dev = qdev_new(TYPE_CPUTWO_IC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ic_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(ic_dev), 0, CPUTWO_IC_BASE);
+    /* Connect IC output to CPU IRQ input (gpio-in line 0) */
+    sysbus_connect_irq(SYS_BUS_DEVICE(ic_dev), 0,
+                       qdev_get_gpio_in(DEVICE(s->cpu), CPUTWO_CPU_IRQ));
+
+    /*
+     * UART
+     *   2 IRQ outputs: RX(0), TX(1) -> IC inputs 1, 2
+     */
     uart_dev = qdev_new(TYPE_CPUTWO_UART);
     qdev_prop_set_chr(uart_dev, "chardev", serial_hd(0));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(uart_dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(uart_dev), 0, CPUTWO_UART_BASE);
+    /* UART RX IRQ -> IC input 1 */
+    sysbus_connect_irq(SYS_BUS_DEVICE(uart_dev), 0,
+                       qdev_get_gpio_in(ic_dev, 1));
+    /* UART TX IRQ -> IC input 2 */
+    sysbus_connect_irq(SYS_BUS_DEVICE(uart_dev), 1,
+                       qdev_get_gpio_in(ic_dev, 2));
 
-    /* Other MMIO devices — stubs for now */
-    create_unimplemented_device("cputwo-timer", CPUTWO_TIMER_BASE, 0x1000);
-    create_unimplemented_device("cputwo-ic",    CPUTWO_IC_BASE,    0x1000);
-    create_unimplemented_device("cputwo-blk",   CPUTWO_BLK_BASE,   0x1000);
-    create_unimplemented_device("cputwo-sv",    CPUTWO_SV_BASE,    0x1000);
+    /*
+     * Timer
+     *   1 IRQ output -> IC input 0
+     */
+    timer_dev = qdev_new(TYPE_CPUTWO_TIMER);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(timer_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(timer_dev), 0, CPUTWO_TIMER_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(timer_dev), 0,
+                       qdev_get_gpio_in(ic_dev, 0));
+
+    /* Supervisor registers (memory-mapped CPU control) */
+    svreg_dev = qdev_new(TYPE_CPUTWO_SVREG);
+    CPUTWO_SVREG(svreg_dev)->cpu_env = &s->cpu->env;
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(svreg_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(svreg_dev), 0, CPUTWO_SV_BASE);
+
+    /* Remaining devices — stubs */
+    create_unimplemented_device("cputwo-blk", CPUTWO_BLK_BASE, 0x1000);
 
     /* Load kernel */
     if (kernel_filename) {
@@ -69,7 +106,6 @@ static void cputwo_board_init(MachineState *machine)
         if (kernel_size > 0) {
             s->cpu->env.r[15] = (uint32_t)entry;
         } else {
-            /* Try loading as raw binary at address 0 */
             kernel_size = load_image_targphys(kernel_filename, 0,
                                               CPUTWO_RAM_SIZE, NULL);
             if (kernel_size < 0) {
