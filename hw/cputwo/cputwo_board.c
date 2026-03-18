@@ -17,7 +17,9 @@
 #include "hw/cputwo/cputwo_ic.h"
 #include "hw/cputwo/cputwo_timer.h"
 #include "hw/cputwo/cputwo_svreg.h"
+#include "hw/cputwo/cputwo_blk.h"
 #include "system/system.h"
+#include "system/block-backend.h"
 #include "elf.h"
 #include "target/cputwo/cpu.h"
 
@@ -41,7 +43,7 @@ static void cputwo_board_init(MachineState *machine)
     CPUTwoBoardState *s = CPUTWO_BOARD(machine);
     MemoryRegion *sysmem = get_system_memory();
     const char *kernel_filename = machine->kernel_filename;
-    DeviceState *ic_dev, *uart_dev, *timer_dev, *svreg_dev;
+    DeviceState *ic_dev, *uart_dev, *timer_dev, *svreg_dev, *blk_dev;
 
     /* Create CPU */
     s->cpu = CPUTWO_CPU(cpu_create(TYPE_CPUTWO_CPU));
@@ -92,8 +94,15 @@ static void cputwo_board_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(svreg_dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(svreg_dev), 0, CPUTWO_SV_BASE);
 
-    /* Remaining devices — stubs */
-    create_unimplemented_device("cputwo-blk", CPUTWO_BLK_BASE, 0x1000);
+    /*
+     * Block device
+     *   1 IRQ output -> IC input 3
+     */
+    blk_dev = qdev_new(TYPE_CPUTWO_BLK);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(blk_dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(blk_dev), 0, CPUTWO_BLK_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(blk_dev), 0,
+                       qdev_get_gpio_in(ic_dev, 3));
 
     /* Load kernel */
     if (kernel_filename) {

@@ -5,6 +5,7 @@ cputwo_ss.add(when: 'CONFIG_CPUTWO_BOARD', if_true: files(
     'cputwo_ic.c',
     'cputwo_timer.c',
     'cputwo_svreg.c',
+    'cputwo_blk.c',
 ))
 
 hw_arch += {'cputwo': cputwo_ss}
