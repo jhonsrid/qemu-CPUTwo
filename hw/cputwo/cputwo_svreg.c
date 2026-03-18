@@ -67,7 +67,7 @@ static void cputwo_svreg_write(void *opaque, hwaddr addr,
     switch (addr) {
     case 0x00: env->epc = data; break;
     case 0x04: env->eflags = data; break;
-    case 0x08: env->evec = data; break;
+    case 0x08: env->evec = data; qemu_log_mask(CPU_LOG_INT, "svreg: EVEC=0x%08x\n", (uint32_t)data); break;
     case 0x0C: break; /* CAUSE: read-only */
     case 0x10: env->status = data; break;
     case 0x14: env->estatus = data; break;

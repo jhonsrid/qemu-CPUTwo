@@ -54,10 +54,14 @@ void cputwo_cpu_do_interrupt(CPUState *cs)
     env->cause = excp;
     env->status = STATUS_PRIV;   /* supervisor mode, IE=0 */
 
-    /* Jump to handler via exception vector table */
+    /*
+     * Jump to handler via exception vector table.
+     * The vector table read uses PHYSICAL addressing (bypasses MMU),
+     * matching the reference emulator's mem_read32() behaviour.
+     */
     uint32_t vec_addr = env->evec + (uint32_t)excp * 4;
     if (vec_addr + 3 < CPUTWO_MEM_SIZE) {
-        env->r[15] = cpu_ldl_data(env, vec_addr);
+        env->r[15] = ldl_le_phys(cs->as, vec_addr);
     } else {
         env->r[15] = 0;
     }

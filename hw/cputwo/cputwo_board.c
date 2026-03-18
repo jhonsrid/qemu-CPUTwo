@@ -20,6 +20,7 @@
 #include "hw/cputwo/cputwo_blk.h"
 #include "system/system.h"
 #include "system/block-backend.h"
+#include "system/blockdev.h"
 #include "elf.h"
 #include "target/cputwo/cpu.h"
 
@@ -97,8 +98,17 @@ static void cputwo_board_init(MachineState *machine)
     /*
      * Block device
      *   1 IRQ output -> IC input 3
+     *   Automatically picks up the first drive passed on the command line.
+     *   Usage: -drive file=disk.img,format=raw
      */
     blk_dev = qdev_new(TYPE_CPUTWO_BLK);
+    {
+        DriveInfo *dinfo = drive_get(IF_NONE, 0, 0);
+        if (dinfo) {
+            qdev_prop_set_drive(blk_dev, "drive",
+                                blk_by_legacy_dinfo(dinfo));
+        }
+    }
     sysbus_realize_and_unref(SYS_BUS_DEVICE(blk_dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(blk_dev), 0, CPUTWO_BLK_BASE);
     sysbus_connect_irq(SYS_BUS_DEVICE(blk_dev), 0,
