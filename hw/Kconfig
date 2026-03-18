@@ -62,6 +62,7 @@ source openrisc/Kconfig
 source ppc/Kconfig
 source riscv/Kconfig
 source rx/Kconfig
+source cputwo/Kconfig
 source s390x/Kconfig
 source sh4/Kconfig
 source sparc/Kconfig

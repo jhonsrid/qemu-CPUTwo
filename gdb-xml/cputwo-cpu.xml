@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!-- CPUTwo GDB target description -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.cputwo.core">
+  <reg name="r0" bitsize="32" type="uint32"/>
+  <reg name="r1" bitsize="32" type="uint32"/>
+  <reg name="r2" bitsize="32" type="uint32"/>
+  <reg name="r3" bitsize="32" type="uint32"/>
+  <reg name="r4" bitsize="32" type="uint32"/>
+  <reg name="r5" bitsize="32" type="uint32"/>
+  <reg name="r6" bitsize="32" type="uint32"/>
+  <reg name="r7" bitsize="32" type="uint32"/>
+  <reg name="r8" bitsize="32" type="uint32"/>
+  <reg name="r9" bitsize="32" type="uint32"/>
+  <reg name="r10" bitsize="32" type="uint32"/>
+  <reg name="r11" bitsize="32" type="uint32"/>
+  <reg name="r12" bitsize="32" type="uint32"/>
+  <reg name="sp" bitsize="32" type="data_ptr"/>
+  <reg name="lr" bitsize="32" type="code_ptr"/>
+  <reg name="pc" bitsize="32" type="code_ptr"/>
+
+  <flags id="cputwo_flags" size="4">
+    <field name="V" start="28" end="28"/>
+    <field name="C" start="29" end="29"/>
+    <field name="Z" start="30" end="30"/>
+    <field name="N" start="31" end="31"/>
+  </flags>
+
+  <flags id="cputwo_status" size="4">
+    <field name="PRIV" start="0" end="0"/>
+    <field name="IE" start="1" end="1"/>
+  </flags>
+
+  <reg name="flags" bitsize="32" type="cputwo_flags"/>
+  <reg name="status" bitsize="32" type="cputwo_status"/>
+  <reg name="epc" bitsize="32" type="code_ptr"/>
+  <reg name="eflags" bitsize="32" type="cputwo_flags"/>
+  <reg name="evec" bitsize="32" type="data_ptr"/>
+  <reg name="cause" bitsize="32" type="uint32"/>
+  <reg name="estatus" bitsize="32" type="cputwo_status"/>
+  <reg name="satp" bitsize="32" type="uint32"/>
+  <reg name="badaddr" bitsize="32" type="data_ptr"/>
+</feature>

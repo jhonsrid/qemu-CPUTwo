@@ -1,0 +1,5 @@
+config CPUTWO_BOARD
+    bool
+    default y
+    depends on CPUTWO
+    select UNIMP
