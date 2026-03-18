@@ -115,6 +115,7 @@ int cputwo_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void cputwo_translate_init(void);
 void cputwo_translate_code(CPUState *cs, TranslationBlock *tb,
                            int *max_insns, vaddr pc, void *host_pc);
+int print_insn_cputwo(bfd_vma addr, disassemble_info *info);
 
 #define CPUTWO_CPU_IRQ 0
 

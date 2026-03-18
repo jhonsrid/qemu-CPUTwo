@@ -128,7 +128,7 @@ static void cputwo_cpu_set_irq(void *opaque, int no, int request)
 static void cputwo_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     info->endian = BFD_ENDIAN_LITTLE;
-    info->print_insn = NULL; /* Use built-in disassembler via log */
+    info->print_insn = print_insn_cputwo;
 }
 
 static inline bool check_access(MMUAccessType access_type, int prot)
