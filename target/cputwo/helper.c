@@ -13,40 +13,49 @@
 #include "hw/irq.h"
 #include "qemu/plugin.h"
 
+/*
+ * CPUTwo exception entry sequence (hardware).
+ *
+ * For SYSCALL:    EPC = PC+4 (return address).  The translator advances
+ *                 r[15] to PC+4 before raising the exception, so r[15]
+ *                 already holds the correct value.
+ *
+ * For faults (illegal/misaligned/bus/divzero/page-fault):
+ *                 EPC = faulting PC.  cpu_loop_exit_restore() in the
+ *                 op-helpers rolls r[15] back to the insn_start PC
+ *                 before we get here.
+ *
+ * For IRQ:        EPC = next-PC (the instruction that was about to
+ *                 execute).  exec_interrupt sets r[15] = next-PC before
+ *                 calling do_interrupt.
+ *
+ * HALT:           Not a true exception dispatch — just stops the CPU.
+ */
 void cputwo_cpu_do_interrupt(CPUState *cs)
 {
     CPUTwoState *env = cpu_env(cs);
     int excp = cs->exception_index;
-    uint64_t last_pc = env->r[15];
+    uint32_t pc_before = env->r[15];
 
     env->in_halt = 0;
 
     if (excp == EXCP_HALT) {
         cs->halted = 1;
         env->in_halt = 1;
-        qemu_plugin_vcpu_exception_cb(cs, last_pc);
-        qemu_log_mask(CPU_LOG_INT, "halt\n");
+        qemu_plugin_vcpu_exception_cb(cs, pc_before);
+        qemu_log_mask(CPU_LOG_INT, "halt at pc=0x%08x\n", pc_before);
         return;
     }
 
-    /* Standard exception entry sequence */
+    /* Save state */
     env->estatus = env->status;
-    if (excp == EXCP_SYSCALL) {
-        /* SYSCALL: EPC = PC+4 (return address past SYSCALL) */
-        env->epc = env->r[15];
-    } else if (excp == EXCP_IRQ) {
-        /* Hardware interrupt: EPC = next instruction to execute */
-        env->epc = env->r[15];
-    } else {
-        /* Faults: EPC = faulting instruction address */
-        env->epc = env->r[15];
-    }
+    env->epc = env->r[15];      /* set appropriately by caller (see above) */
     env->eflags = env->flags;
     env->cause = excp;
-    env->status = STATUS_PRIV; /* supervisor mode, IE=0 */
+    env->status = STATUS_PRIV;   /* supervisor mode, IE=0 */
 
     /* Jump to handler via exception vector table */
-    uint32_t vec_addr = env->evec + excp * 4;
+    uint32_t vec_addr = env->evec + (uint32_t)excp * 4;
     if (vec_addr + 3 < CPUTWO_MEM_SIZE) {
         env->r[15] = cpu_ldl_data(env, vec_addr);
     } else {
@@ -54,13 +63,13 @@ void cputwo_cpu_do_interrupt(CPUState *cs)
     }
 
     qemu_log_mask(CPU_LOG_INT,
-                  "exception %d (cause=0x%02x) at pc=0x%08x -> handler=0x%08x\n",
-                  excp, excp, (uint32_t)last_pc, env->r[15]);
+                  "exception %d at pc=0x%08x -> epc=0x%08x handler=0x%08x\n",
+                  excp, pc_before, env->epc, env->r[15]);
 
     if (excp == EXCP_IRQ) {
-        qemu_plugin_vcpu_interrupt_cb(cs, last_pc);
+        qemu_plugin_vcpu_interrupt_cb(cs, pc_before);
     } else {
-        qemu_plugin_vcpu_exception_cb(cs, last_pc);
+        qemu_plugin_vcpu_exception_cb(cs, pc_before);
     }
 }
 
@@ -70,6 +79,7 @@ bool cputwo_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
         (env->status & STATUS_IE)) {
+        /* r[15] already points to the next instruction to execute */
         cs->exception_index = EXCP_IRQ;
         cputwo_cpu_do_interrupt(cs);
         return true;

@@ -932,7 +932,10 @@ static bool trans_CAS(DisasContext *ctx, arg_r *a)
 /* Privileged / System */
 static bool trans_SYSCALL(DisasContext *ctx, arg_SYSCALL *a)
 {
-    /* PC already at PC+4 from translator */
+    /* Set r[15] = PC+4 so do_interrupt stores the correct return address
+     * in EPC.  The translator advances pc_next but the TCG cpu_pc global
+     * still holds the old insn_start value until we write it. */
+    tcg_gen_movi_i32(cpu_pc, ctx->base.pc_next);
     gen_helper_cputwo_syscall(tcg_env);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -941,14 +944,14 @@ static bool trans_SYSCALL(DisasContext *ctx, arg_SYSCALL *a)
 static bool trans_SYSRET(DisasContext *ctx, arg_SYSRET *a)
 {
     gen_helper_cputwo_sysret(tcg_env);
-    ctx->base.is_jmp = DISAS_EXIT;
+    ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }
 
 static bool trans_KRET(DisasContext *ctx, arg_KRET *a)
 {
     gen_helper_cputwo_kret(tcg_env);
-    ctx->base.is_jmp = DISAS_EXIT;
+    ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }
 
