@@ -100,8 +100,8 @@ hwaddr cputwo_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         return addr;
     }
 
-    /* MMIO bypass */
-    if (addr >= CPUTWO_MMIO_BASE) {
+    /* MMIO bypass (only for addresses within physical range) */
+    if (addr >= CPUTWO_MMIO_BASE && addr < CPUTWO_MEM_SIZE) {
         return addr;
     }
 

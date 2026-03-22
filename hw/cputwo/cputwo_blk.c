@@ -103,6 +103,13 @@ static uint64_t cputwo_blk_read(void *opaque, hwaddr addr, unsigned size)
         return s->status;
     case CPUTWO_BLK_CONTROL:
         return s->control;
+    case CPUTWO_BLK_SIZE:
+        if (s->blk) {
+            int64_t len = blk_getlength(s->blk);
+            if (len > 0)
+                return (uint32_t)(len / CPUTWO_BLK_SECTOR_SIZE);
+        }
+        return 0;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "cputwo_blk: bad read 0x%" HWADDR_PRIx "\n", addr);

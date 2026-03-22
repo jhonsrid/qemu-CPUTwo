@@ -171,8 +171,8 @@ static bool cputwo_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
         return true;
     }
 
-    /* MMIO region always bypasses MMU */
-    if (va >= CPUTWO_MMIO_BASE) {
+    /* MMIO region always bypasses MMU (only for VAs within physical range) */
+    if (va >= CPUTWO_MMIO_BASE && va < CPUTWO_MEM_SIZE) {
         pa = va & TARGET_PAGE_MASK;
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         tlb_set_page(cs, va & TARGET_PAGE_MASK, pa, prot, mmu_idx,

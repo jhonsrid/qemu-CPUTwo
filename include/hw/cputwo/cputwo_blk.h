@@ -15,6 +15,7 @@
 #define CPUTWO_BLK_COMMAND  0x08
 #define CPUTWO_BLK_STATUS   0x0C
 #define CPUTWO_BLK_CONTROL  0x10
+#define CPUTWO_BLK_SIZE     0x14    /* total sector count (read-only) */
 
 /* Command values */
 #define CPUTWO_BLK_CMD_READ   1
